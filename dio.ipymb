@@ -1,0 +1,71 @@
+# 1. Importações
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Flatten, Dropout
+from tensorflow.keras.optimizers import Adam
+import matplotlib.pyplot as plt
+
+# 2. Configurações
+IMG_SIZE = 224
+BATCH_SIZE = 32
+EPOCHS = 10
+
+# 3. Diretórios (ajuste conforme seu ambiente)
+train_dir = '/content/dataset/train'
+val_dir = '/content/dataset/validation'
+
+# 4. Pré-processamento com ImageDataGenerator
+train_datagen = ImageDataGenerator(rescale=1./255, rotation_range=20, zoom_range=0.2, horizontal_flip=True)
+val_datagen = ImageDataGenerator(rescale=1./255)
+
+train_generator = train_datagen.flow_from_directory(
+    train_dir,
+    target_size=(IMG_SIZE, IMG_SIZE),
+    batch_size=BATCH_SIZE,
+    class_mode='binary'
+)
+
+val_generator = val_datagen.flow_from_directory(
+    val_dir,
+    target_size=(IMG_SIZE, IMG_SIZE),
+    batch_size=BATCH_SIZE,
+    class_mode='binary'
+)
+
+# 5. Carregar VGG16 sem a camada de saída
+base_model = VGG16(weights='imagenet', include_top=False, input_shape=(IMG_SIZE, IMG_SIZE, 3))
+base_model.trainable = False  # Congela as camadas
+
+# 6. Construção do modelo
+model = Sequential([
+    base_model,
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dropout(0.5),
+    Dense(1, activation='sigmoid')  # Saída binária
+])
+
+# 7. Compilação
+model.compile(optimizer=Adam(learning_rate=0.0001), loss='binary_crossentropy', metrics=['accuracy'])
+
+# 8. Treinamento
+history = model.fit(train_generator, epochs=EPOCHS, validation_data=val_generator)
+
+# 9. Visualização dos resultados
+plt.plot(history.history['accuracy'], label='Treino')
+plt.plot(history.history['val_accuracy'], label='Validação')
+plt.title('Acurácia')
+plt.xlabel('Épocas')
+plt.ylabel('Acurácia')
+plt.legend()
+plt.show()
+
+plt.plot(history.history['loss'], label='Treino')
+plt.plot(history.history['val_loss'], label='Validação')
+plt.title('Perda')
+plt.xlabel('Épocas')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()
